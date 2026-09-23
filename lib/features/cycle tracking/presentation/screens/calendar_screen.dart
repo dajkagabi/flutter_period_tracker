@@ -14,6 +14,7 @@ class CalendarScreen extends StatefulWidget {
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
+// A naptár képernyő állapotát kezelő osztály
 class _CalendarScreenState extends State<CalendarScreen> {
   final DailyLogRepository _repository = DailyLogRepository();
 
@@ -34,20 +35,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   // Adatok betöltése az adatbázisból és a predikciók kiszámítása
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
-    // Lekérjük az elmúlt fél év és a következő fél év adatait
-    final start = DateTime(_focusedDay.year, _focusedDay.month - 6, 1);
-    final end = DateTime(_focusedDay.year, _focusedDay.month + 6, 30);
+    try {
+      // Lekérjük az elmúlt fél év és a következő fél év adatait
+      //6 = hónapok száma, 1 = kezdő nap, 30 =
+      final start = DateTime(_focusedDay.year, _focusedDay.month - 6, 1);
+      final end = DateTime(_focusedDay.year, _focusedDay.month + 6, 30);
 
-    final logs = await _repository.getLogsForRange(start, end);
-    final prediction = CycleCalculator.calculatePredictions(logs);
+      final logs = await _repository.getLogsForRange(start, end);
+      final prediction = await CycleCalculator.calculatePredictions(logs);
 
-    setState(() {
-      _logs = logs;
-      _prediction = prediction;
-      _isLoading = false;
-    });
+      if (!mounted) return;
+      setState(() {
+        _logs = logs;
+        _prediction = prediction;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _logs = [];
+        _prediction = null;
+        _isLoading = false;
+      });
+    }
   }
 
   // Segédfüggvény: megnézi, hogy két DateTime ugyanarra a napra esik-e
@@ -83,14 +96,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ).then((_) => _loadData()); // Visszatéréskor frissíti a naptárat
             },
           ),
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // 1. NAPTÁR NÉZET
+                // Naptár widget
                 TableCalendar(
                   firstDay: DateTime.utc(2020, 1, 1),
                   lastDay: DateTime.utc(2030, 12, 31),

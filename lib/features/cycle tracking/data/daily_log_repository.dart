@@ -9,7 +9,6 @@ class DailyLogRepository {
   // Napi adat mentése vagy frissítése (Insert/Update)
   Future<void> saveDailyLog(DailyLog log) async {
     final db = await _dbProvider.database;
-    final dateStr = log.date.toIso8601String().split('T')[0];
 
     // Ha arra a napra már létezik bejegyzés, felülírja (ConflictAlgorithm.replace)
     await db.insert(
