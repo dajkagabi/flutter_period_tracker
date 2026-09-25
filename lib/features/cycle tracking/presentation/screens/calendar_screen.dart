@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_period_tracker/features/cycle%20tracking/presentation/screens/analytics_overview_screen.dart';
-import 'package:flutter_period_tracker/features/cycle%20tracking/presentation/screens/log_daily_data_screen.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../../../core/services/notification_service.dart';
+import '../../../../core/services/settings_service.dart';
 import '../../../../core/utils/cycle_calculator.dart';
 import '../../data/daily_log_model.dart';
 import '../../data/daily_log_repository.dart';
+import 'analytics_overview_screen.dart';
+import 'log_daily_data_screen.dart';
+import 'settings_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -17,13 +20,16 @@ class CalendarScreen extends StatefulWidget {
 // A naptár képernyő állapotát kezelő osztály
 class _CalendarScreenState extends State<CalendarScreen> {
   final DailyLogRepository _repository = DailyLogRepository();
+  final SettingsService _settingsService = SettingsService();
 
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
+  // A naptárhoz tartozó adatok
   List<DailyLog> _logs = [];
-  CyclePrediction? _prediction;
+  // A kiszámított ciklus előrejelzések (múltbeli és jövőbeli)
+  List<CyclePrediction> _predictions = [];
   bool _isLoading = true;
 
   @override
@@ -33,31 +39,59 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _loadData();
   }
 
-  // Adatok betöltése az adatbázisból és a predikciók kiszámítása
+  // Adatok betöltése az adatbázisból
   Future<void> _loadData() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
-      // Lekérjük az elmúlt fél év és a következő fél év adatait
-      //6 = hónapok száma, 1 = kezdő nap, 30 =
-      final start = DateTime(_focusedDay.year, _focusedDay.month - 6, 1);
-      final end = DateTime(_focusedDay.year, _focusedDay.month + 6, 30);
+      // Új: 2020-tól kezdve az ÖSSZES eddigi és jövőbeli adatot betölti
+      final start = DateTime(2020, 1, 1);
+      final end = DateTime(_focusedDay.year + 2, 12, 31);
 
       final logs = await _repository.getLogsForRange(start, end);
-      final prediction = await CycleCalculator.calculatePredictions(logs);
+
+      List<CyclePrediction> predictions = [];
+      try {
+        // Visszamenőleg is kiszámoljuk az összes ciklusra az adatsort
+        predictions = await CycleCalculator.calculateAllPredictions(logs);
+      } catch (_) {
+        predictions = [];
+      }
 
       if (!mounted) return;
       setState(() {
         _logs = logs;
-        _prediction = prediction;
+        _predictions = predictions;
         _isLoading = false;
       });
+
+      // Az értesítések beállítása (a legutolsó/jövőbeli ciklusra)
+      try {
+        final isNotificationsEnabled = await _settingsService
+            .isNotificationsEnabled();
+
+        // Kikeressük a legfrissebb jövőbeli előrejelzést az értesítéshez
+        final futurePrediction = await CycleCalculator.calculatePredictions(
+          logs,
+        );
+
+        if (futurePrediction != null && isNotificationsEnabled) {
+          final daysBefore = await _settingsService.getDaysBeforePeriod();
+          await NotificationService().schedulePeriodReminder(
+            nextPeriodDate: futurePrediction.nextPeriodStart,
+            daysBefore: daysBefore,
+          );
+        } else if (!isNotificationsEnabled) {
+          await NotificationService().cancelAllNotifications();
+        }
+        // Az értesítés hibája nem akadályozza a naptár megjelenítését
+      } catch (_) {}
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _logs = [];
-        _prediction = null;
+        _predictions = [];
         _isLoading = false;
       });
     }
@@ -81,9 +115,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(' Cikluskövető'),
+        title: const Text('Cikluskövető'),
         actions: [
-          // Gomb az összegzés és grafikonok képernyőre
           IconButton(
             icon: const Icon(Icons.bar_chart, color: Colors.pink, size: 28),
             tooltip: 'Összegzés és Grafikonok',
@@ -93,7 +126,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 MaterialPageRoute(
                   builder: (context) => const AnalyticsOverviewScreen(),
                 ),
-              ).then((_) => _loadData()); // Visszatéréskor frissíti a naptárat
+              ).then((_) => _loadData());
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.grey, size: 26),
+            tooltip: 'Beállítások',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              ).then((_) => _loadData());
             },
           ),
         ],
@@ -102,7 +145,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Naptár widget
                 TableCalendar(
                   firstDay: DateTime.utc(2020, 1, 1),
                   lastDay: DateTime.utc(2030, 12, 31),
@@ -121,9 +163,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   },
                   onPageChanged: (focusedDay) {
                     _focusedDay = focusedDay;
+                    _loadData();
                   },
-
-                  // Egyedi színezés a ciklusfázisoknak minden nézetben
                   calendarBuilders: CalendarBuilders(
                     defaultBuilder: (context, day, focusedDay) {
                       return _buildCalendarCell(day, isSelected: false);
@@ -137,7 +178,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
 
-                const Divider(height: 32),
+                const Divider(height: 16),
 
                 // Jelmagyarázat
                 Padding(
@@ -162,7 +203,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                 const Spacer(),
 
-                // Gomb a naplózáshoz
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: SizedBox(
@@ -188,7 +228,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                       onPressed: () async {
                         if (_selectedDay != null) {
-                          // Megnyitjuk a Naplózó képernyőt
                           final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -198,7 +237,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                           );
 
-                          // Ha mentettünk adatot, újra betöltjük a naptárt
                           if (result == true) {
                             _loadData();
                           }
@@ -212,7 +250,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // Cella egyedi megrajzolása a ciklus állapota alapján
+  // Cella egyedi megrajzolása
   Widget _buildCalendarCell(
     DateTime day, {
     bool isSelected = false,
@@ -226,46 +264,43 @@ class _CalendarScreenState extends State<CalendarScreen> {
       orElse: () => null,
     );
 
-    // Ellenőrizzük, hogy a várható intervallumban vagy az előtt van-e már rögzített menstruáció
-    final hasRecordedPeriodInPredictedWindow =
-        _prediction != null &&
-        _logs.any(
-          (log) =>
-              (log.isPeriodStart || log.flowIntensity != null) &&
-              log.date.isAfter(
-                _prediction!.nextPeriodStart.subtract(const Duration(days: 7)),
-              ) &&
-              log.date.isBefore(
-                _prediction!.nextPeriodEnd.add(const Duration(days: 1)),
-              ),
-        );
-
     if (logForDay != null &&
         (logForDay.isPeriodStart || logForDay.flowIntensity != null)) {
-      // 1. Valós, rögzített menstruációs nap -> PIROS
+      //  Valós, rögzített menstruációs nap
       backgroundColor = Colors.red.shade300;
-    } else if (_prediction != null) {
-      // 2. Ovuláció napja
-      if (_isSameDayWithoutTime(day, _prediction!.ovulationDate)) {
-        backgroundColor = Colors.orange.shade300;
-      }
-      // 3. Termékeny időszak
-      else if (_isDateInRange(
-        day,
-        _prediction!.fertileWindowStart,
-        _prediction!.fertileWindowEnd,
-      )) {
-        backgroundColor = Colors.blue.shade100;
-      }
-      // 4. Várható menstruáció -> Csak akkor rajzoljuk ki LILÁVAL,
-      // ha abban az időszakban MÉG NEM volt rögzítve valós vérzés!
-      else if (_isDateInRange(
-            day,
-            _prediction!.nextPeriodStart,
-            _prediction!.nextPeriodEnd,
-          ) &&
-          !hasRecordedPeriodInPredictedWindow) {
-        backgroundColor = Colors.purple.shade100;
+    } else {
+      //  Végignézzük az ÖSSZES kiszámított ciklust (múltbelieket és a jövőbelit is)
+      for (final pred in _predictions) {
+        if (_isSameDayWithoutTime(day, pred.ovulationDate)) {
+          backgroundColor = Colors.orange.shade300;
+          break;
+        } else if (_isDateInRange(
+          day,
+          pred.fertileWindowStart,
+          pred.fertileWindowEnd,
+        )) {
+          backgroundColor = Colors.blue.shade100;
+          break;
+        } else {
+          // A lila (várható menstruáció) színt csak akkor mutatjuk,
+          // ha arra a jósolt ablakra MÉG NEM rögzítettél valódi vérzést
+          final hasRecordedPeriodInPredictedWindow = _logs.any(
+            (log) =>
+                (log.isPeriodStart || log.flowIntensity != null) &&
+                log.date.isAfter(
+                  pred.nextPeriodStart.subtract(const Duration(days: 7)),
+                ) &&
+                log.date.isBefore(
+                  pred.nextPeriodEnd.add(const Duration(days: 1)),
+                ),
+          );
+
+          if (_isDateInRange(day, pred.nextPeriodStart, pred.nextPeriodEnd) &&
+              !hasRecordedPeriodInPredictedWindow) {
+            backgroundColor = Colors.purple.shade100;
+            break;
+          }
+        }
       }
     }
 

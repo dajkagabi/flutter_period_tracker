@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../data/daily_log_model.dart';
 import '../../data/daily_log_repository.dart';
 
+// Naplózás képernyő,
+// ahol a felhasználó rögzítheti a napi adatokat
 class LogDailyDataScreen extends StatefulWidget {
   final DateTime selectedDate;
 
@@ -99,8 +101,8 @@ class _LogDailyDataScreenState extends State<LogDailyDataScreen> {
           : ListView(
               padding: const EdgeInsets.all(16.0),
               children: [
-                // 1. 🩸 MENSTRUÁCIÓ
-                _buildSectionTitle('🩸 Menstruáció'),
+                // 1.  MENSTRUÁCIÓ
+                _buildSectionTitle(' Menstruáció'),
                 CheckboxListTile(
                   title: const Text('Menstruáció kezdete'),
                   value: _isPeriodStart,
@@ -135,8 +137,8 @@ class _LogDailyDataScreenState extends State<LogDailyDataScreen> {
 
                 const Divider(height: 32),
 
-                // 2. 😊 HANGULAT
-                _buildSectionTitle('😊 Hangulat'),
+                // 2.  HANGULAT
+                _buildSectionTitle(' Hangulat'),
                 _buildMultiSelectChips(
                   options: [
                     'boldog',
@@ -151,8 +153,8 @@ class _LogDailyDataScreenState extends State<LogDailyDataScreen> {
 
                 const Divider(height: 32),
 
-                // 3. 🤒 TÜNETEK
-                _buildSectionTitle('🤒 Tünetek'),
+                // 3.  TÜNETEK
+                _buildSectionTitle(' Tünetek'),
                 const Text(
                   'Fizikai',
                   style: TextStyle(fontWeight: FontWeight.bold),
@@ -189,8 +191,8 @@ class _LogDailyDataScreenState extends State<LogDailyDataScreen> {
 
                 const Divider(height: 32),
 
-                // 4. ❤️ SZEXUÁLIS AKTIVITÁS
-                _buildSectionTitle('❤️ Szexuális aktivitás'),
+                // 4.  SZEXUÁLIS AKTIVITÁS
+                _buildSectionTitle(' Szexuális aktivitás'),
                 SwitchListTile(
                   title: const Text('Volt szexuális aktivitás?'),
                   value: _hadSexualActivity,
@@ -214,8 +216,8 @@ class _LogDailyDataScreenState extends State<LogDailyDataScreen> {
 
                 const Divider(height: 32),
 
-                // 5. 🥚 OVULÁCIÓ MEGFIGYELÉS
-                _buildSectionTitle('🥚 Ovuláció megfigyelés'),
+                // 5.  OVULÁCIÓ MEGFIGYELÉS
+                _buildSectionTitle(' Ovuláció megfigyelés'),
                 const Text(
                   'Nyák típusa:',
                   style: TextStyle(fontWeight: FontWeight.bold),

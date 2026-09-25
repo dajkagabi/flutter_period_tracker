@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_period_tracker/features/cycle%20tracking/presentation/screens/calendar_screen.dart'
-    show CalendarScreen;
+import 'package:flutter_period_tracker/core/services/notification_service.dart';
+import 'package:flutter_period_tracker/features/cycle%20tracking/presentation/screens/calendar_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Értesítési szolgáltatás indítása
+  //(az init() metódus tartalmazza az engedélykérést is)
+  await NotificationService().init();
+
   runApp(const PeriodTrackerApp());
 }
 
@@ -18,8 +23,6 @@ class PeriodTrackerApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.pinkAccent),
         useMaterial3: true,
-        //Élesszöveg vagy nem
-        typography: Typography.material2021(),
       ),
       home: const CalendarScreen(),
     );
