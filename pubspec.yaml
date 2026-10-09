@@ -1,0 +1,40 @@
+name: flutter_period_tracker
+description: Cikluskövető alkalmazás.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+
+  # állapotkezelés
+  flutter_riverpod: ^2.5.1
+
+  # helyi tárolás
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  shared_preferences: ^2.2.3
+  uuid: ^4.4.2
+
+  # értesítések
+  flutter_local_notifications: ^19.0.0
+  timezone: ^0.10.0
+  flutter_timezone: ^5.0.1
+
+  # UI
+  table_calendar: ^3.1.2
+  fl_chart: ^0.69.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
